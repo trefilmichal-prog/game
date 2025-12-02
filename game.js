@@ -14,6 +14,8 @@
  * @property {number} energyPerClick
  * @property {number} rebirths
  * @property {number} rebirthMultiplier
+ * @property {number} autoClickers
+ * @property {number} autoClickerCost
  * @property {number} upgradeClickCost
  * @property {number} upgradeEnergyCost
  * @property {number} rebirthCost
@@ -28,6 +30,8 @@ let state = {
     energyPerClick: 1,
     rebirths: 0,
     rebirthMultiplier: 1.0,
+    autoClickers: 0,
+    autoClickerCost: 100,
     upgradeClickCost: 10,
     upgradeEnergyCost: 25,
     rebirthCost: 1000
@@ -60,9 +64,11 @@ function updateUI() {
     dom.statRebirths.textContent = state.rebirths.toString();
     dom.statClickPower.textContent = state.clickPower.toString();
     dom.statRebirthMult.textContent = state.rebirthMultiplier.toFixed(1) + "x";
+    dom.statAutoClickers.textContent = state.autoClickers.toString();
 
     dom.costClickUpgrade.textContent = formatNumber(state.upgradeClickCost);
     dom.costEnergyUpgrade.textContent = formatNumber(state.upgradeEnergyCost);
+    dom.costAutoClicker.textContent = formatNumber(state.autoClickerCost);
     dom.rebirthCostText.textContent = formatNumber(state.rebirthCost);
 
     const progressFraction = Math.max(0, Math.min(1, state.coins / state.rebirthCost));
@@ -71,6 +77,7 @@ function updateUI() {
     dom.btnRebirth.disabled = state.coins < state.rebirthCost;
     dom.btnBuyClick.disabled = state.coins < state.upgradeClickCost;
     dom.btnBuyEnergy.disabled = state.coins < state.upgradeEnergyCost;
+    dom.btnBuyAutoClicker.disabled = state.coins < state.autoClickerCost;
 }
 
 function getRebirthGain() {
@@ -78,12 +85,19 @@ function getRebirthGain() {
 }
 
 function handleClick() {
-    const baseEnergy = state.clickPower * state.energyPerClick;
+    applyClickGain(1);
+}
+
+function applyClickGain(clicksGenerated) {
+    if (clicksGenerated <= 0) {
+        return;
+    }
+    const baseEnergy = state.clickPower * state.energyPerClick * clicksGenerated;
     const gainMultiplier = state.rebirthMultiplier * getRebirthGain();
     const gainedEnergy = baseEnergy * gainMultiplier;
     const gainedCoins = baseEnergy * gainMultiplier;
 
-    state.clicks += 1;
+    state.clicks += clicksGenerated;
     state.energy += gainedEnergy;
     state.coins += gainedCoins;
 
@@ -109,6 +123,17 @@ function buyEnergyUpgrade() {
     state.coins -= state.upgradeEnergyCost;
     state.energyPerClick += 1;
     state.upgradeEnergyCost = Math.floor(state.upgradeEnergyCost * 2.0);
+    updateUI();
+    scheduleSave();
+}
+
+function buyAutoClicker() {
+    if (state.coins < state.autoClickerCost) {
+        return;
+    }
+    state.coins -= state.autoClickerCost;
+    state.autoClickers += 1;
+    state.autoClickerCost = Math.floor(state.autoClickerCost * 2.5);
     updateUI();
     scheduleSave();
 }
@@ -236,13 +261,16 @@ function initDom() {
     dom.statRebirths = document.getElementById("stat-rebirths");
     dom.statClickPower = document.getElementById("stat-clickPower");
     dom.statRebirthMult = document.getElementById("stat-rebirthMult");
+    dom.statAutoClickers = document.getElementById("stat-autoclickers");
     dom.costClickUpgrade = document.getElementById("cost-click-upgrade");
     dom.costEnergyUpgrade = document.getElementById("cost-energy-upgrade");
+    dom.costAutoClicker = document.getElementById("cost-autoclicker");
     dom.rebirthCostText = document.getElementById("rebirth-cost-text");
     dom.progressBar = document.getElementById("progress-bar");
     dom.btnClick = document.getElementById("btn-click");
     dom.btnBuyClick = document.getElementById("btn-buy-click");
     dom.btnBuyEnergy = document.getElementById("btn-buy-energy");
+    dom.btnBuyAutoClicker = document.getElementById("btn-buy-autoclicker");
     dom.btnRebirth = document.getElementById("btn-rebirth");
     dom.statusText = document.getElementById("status-text");
     dom.saveStatus = document.querySelector("#save-status span");
@@ -252,6 +280,7 @@ function initEvents() {
     dom.btnClick.addEventListener("click", handleClick);
     dom.btnBuyClick.addEventListener("click", buyClickUpgrade);
     dom.btnBuyEnergy.addEventListener("click", buyEnergyUpgrade);
+    dom.btnBuyAutoClicker.addEventListener("click", buyAutoClicker);
     dom.btnRebirth.addEventListener("click", performRebirth);
 
     window.addEventListener("beforeunload", () => {
@@ -266,4 +295,7 @@ window.addEventListener("DOMContentLoaded", () => {
     initEvents();
     updateUI();
     void loadState();
+    window.setInterval(() => {
+        applyClickGain(state.autoClickers);
+    }, 1000);
 });

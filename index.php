@@ -265,6 +265,10 @@ declare(strict_types=1);
                 <div class="stat-label">Rebirth násobitel</div>
                 <div class="stat-value" id="stat-rebirthMult">1.0x</div>
             </div>
+            <div class="stat">
+                <div class="stat-label">Autoclickery</div>
+                <div class="stat-value" id="stat-autoclickers">0</div>
+            </div>
         </div>
         <button id="btn-click" class="primary-button">
             Klikni pro energii
@@ -307,6 +311,18 @@ declare(strict_types=1);
                     </div>
                 </div>
                 <button class="shop-button" id="btn-buy-energy">
+                    Koupit
+                </button>
+            </div>
+            <div class="shop-item">
+                <div class="shop-main">
+                    <div class="shop-title">Autoclicker</div>
+                    <div class="shop-subtitle">Automaticky provede 1 kliknutí za sekundu</div>
+                    <div class="shop-meta">
+                        Cena: <span id="cost-autoclicker">100</span> coinů
+                    </div>
+                </div>
+                <button class="shop-button" id="btn-buy-autoclicker">
                     Koupit
                 </button>
             </div>
