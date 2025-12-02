@@ -16,6 +16,10 @@
  * @property {number} rebirthMultiplier
  * @property {number} autoClickers
  * @property {number} autoClickerCost
+ * @property {number} autoClickerPower
+ * @property {number} autoClickerPowerCost
+ * @property {number} globalMultiplier
+ * @property {number} globalMultiplierCost
  * @property {number} upgradeClickCost
  * @property {number} upgradeEnergyCost
  * @property {number} rebirthCost
@@ -32,6 +36,10 @@ let state = {
     rebirthMultiplier: 1.0,
     autoClickers: 0,
     autoClickerCost: 100,
+    autoClickerPower: 1,
+    autoClickerPowerCost: 200,
+    globalMultiplier: 1.0,
+    globalMultiplierCost: 500,
     upgradeClickCost: 10,
     upgradeEnergyCost: 25,
     rebirthCost: 1000
@@ -65,10 +73,14 @@ function updateUI() {
     dom.statClickPower.textContent = state.clickPower.toString();
     dom.statRebirthMult.textContent = state.rebirthMultiplier.toFixed(1) + "x";
     dom.statAutoClickers.textContent = state.autoClickers.toString();
+    dom.statAutoPower.textContent = state.autoClickerPower.toFixed(1) + "x";
+    dom.statGlobalBonus.textContent = state.globalMultiplier.toFixed(1) + "x";
 
     dom.costClickUpgrade.textContent = formatNumber(state.upgradeClickCost);
     dom.costEnergyUpgrade.textContent = formatNumber(state.upgradeEnergyCost);
     dom.costAutoClicker.textContent = formatNumber(state.autoClickerCost);
+    dom.costAutoPower.textContent = formatNumber(state.autoClickerPowerCost);
+    dom.costGlobalBonus.textContent = formatNumber(state.globalMultiplierCost);
     dom.rebirthCostText.textContent = formatNumber(state.rebirthCost);
 
     const progressFraction = Math.max(0, Math.min(1, state.coins / state.rebirthCost));
@@ -78,6 +90,8 @@ function updateUI() {
     dom.btnBuyClick.disabled = state.coins < state.upgradeClickCost;
     dom.btnBuyEnergy.disabled = state.coins < state.upgradeEnergyCost;
     dom.btnBuyAutoClicker.disabled = state.coins < state.autoClickerCost;
+    dom.btnBuyAutoPower.disabled = state.coins < state.autoClickerPowerCost;
+    dom.btnBuyGlobalBonus.disabled = state.coins < state.globalMultiplierCost;
 }
 
 function getRebirthGain() {
@@ -93,7 +107,7 @@ function applyClickGain(clicksGenerated) {
         return;
     }
     const baseEnergy = state.clickPower * state.energyPerClick * clicksGenerated;
-    const gainMultiplier = state.rebirthMultiplier * getRebirthGain();
+    const gainMultiplier = state.rebirthMultiplier * getRebirthGain() * state.globalMultiplier;
     const gainedEnergy = baseEnergy * gainMultiplier;
     const gainedCoins = baseEnergy * gainMultiplier;
 
@@ -134,6 +148,28 @@ function buyAutoClicker() {
     state.coins -= state.autoClickerCost;
     state.autoClickers += 1;
     state.autoClickerCost = Math.floor(state.autoClickerCost * 2.5);
+    updateUI();
+    scheduleSave();
+}
+
+function buyAutoPowerUpgrade() {
+    if (state.coins < state.autoClickerPowerCost) {
+        return;
+    }
+    state.coins -= state.autoClickerPowerCost;
+    state.autoClickerPower = parseFloat((state.autoClickerPower + 0.5).toFixed(1));
+    state.autoClickerPowerCost = Math.floor(state.autoClickerPowerCost * 2.8);
+    updateUI();
+    scheduleSave();
+}
+
+function buyGlobalMultiplierUpgrade() {
+    if (state.coins < state.globalMultiplierCost) {
+        return;
+    }
+    state.coins -= state.globalMultiplierCost;
+    state.globalMultiplier = parseFloat((state.globalMultiplier + 0.5).toFixed(1));
+    state.globalMultiplierCost = Math.floor(state.globalMultiplierCost * 2.9);
     updateUI();
     scheduleSave();
 }
@@ -265,15 +301,21 @@ function initDom() {
     dom.costClickUpgrade = document.getElementById("cost-click-upgrade");
     dom.costEnergyUpgrade = document.getElementById("cost-energy-upgrade");
     dom.costAutoClicker = document.getElementById("cost-autoclicker");
+    dom.costAutoPower = document.getElementById("cost-autopower");
+    dom.costGlobalBonus = document.getElementById("cost-globalbonus");
     dom.rebirthCostText = document.getElementById("rebirth-cost-text");
     dom.progressBar = document.getElementById("progress-bar");
     dom.btnClick = document.getElementById("btn-click");
     dom.btnBuyClick = document.getElementById("btn-buy-click");
     dom.btnBuyEnergy = document.getElementById("btn-buy-energy");
     dom.btnBuyAutoClicker = document.getElementById("btn-buy-autoclicker");
+    dom.btnBuyAutoPower = document.getElementById("btn-buy-autopower");
+    dom.btnBuyGlobalBonus = document.getElementById("btn-buy-globalbonus");
     dom.btnRebirth = document.getElementById("btn-rebirth");
     dom.statusText = document.getElementById("status-text");
     dom.saveStatus = document.querySelector("#save-status span");
+    dom.statAutoPower = document.getElementById("stat-autopower");
+    dom.statGlobalBonus = document.getElementById("stat-globalbonus");
 }
 
 function initEvents() {
@@ -281,6 +323,8 @@ function initEvents() {
     dom.btnBuyClick.addEventListener("click", buyClickUpgrade);
     dom.btnBuyEnergy.addEventListener("click", buyEnergyUpgrade);
     dom.btnBuyAutoClicker.addEventListener("click", buyAutoClicker);
+    dom.btnBuyAutoPower.addEventListener("click", buyAutoPowerUpgrade);
+    dom.btnBuyGlobalBonus.addEventListener("click", buyGlobalMultiplierUpgrade);
     dom.btnRebirth.addEventListener("click", performRebirth);
 
     window.addEventListener("beforeunload", () => {
@@ -296,6 +340,6 @@ window.addEventListener("DOMContentLoaded", () => {
     updateUI();
     void loadState();
     window.setInterval(() => {
-        applyClickGain(state.autoClickers);
+        applyClickGain(state.autoClickers * state.autoClickerPower);
     }, 1000);
 });
