@@ -25,27 +25,36 @@
  * @property {number} rebirthCost
  */
 
+function createDefaultState() {
+    return {
+        clicks: 0,
+        energy: 0,
+        coins: 0,
+        clickPower: 1,
+        energyPerClick: 1,
+        rebirths: 0,
+        rebirthMultiplier: 1.0,
+        autoClickers: 0,
+        autoClickerCost: 100,
+        autoClickerPower: 1,
+        autoClickerPowerCost: 200,
+        globalMultiplier: 1.0,
+        globalMultiplierCost: 500,
+        upgradeClickCost: 10,
+        upgradeEnergyCost: 25,
+        rebirthCost: 1000
+    };
+}
+
 /** @type {GameState} */
-let state = {
-    clicks: 0,
-    energy: 0,
-    coins: 0,
-    clickPower: 1,
-    energyPerClick: 1,
-    rebirths: 0,
-    rebirthMultiplier: 1.0,
-    autoClickers: 0,
-    autoClickerCost: 100,
-    autoClickerPower: 1,
-    autoClickerPowerCost: 200,
-    globalMultiplier: 1.0,
-    globalMultiplierCost: 500,
-    upgradeClickCost: 10,
-    upgradeEnergyCost: 25,
-    rebirthCost: 1000
-};
+let state = createDefaultState();
+let currentUser = null;
 
 const dom = {};
+
+function getLocalStorageKey() {
+    return currentUser ? `rebirthGameState:${currentUser.username}` : "rebirthGameState";
+}
 
 function formatNumber(value) {
     if (!Number.isFinite(value)) {
@@ -63,6 +72,22 @@ function formatNumber(value) {
     }
     const digits = v < 10 ? 2 : (v < 100 ? 1 : 0);
     return v.toFixed(digits) + units[unitIndex];
+}
+
+function setAuthMessage(message, isError = false) {
+    if (!dom.authMessage) return;
+    dom.authMessage.textContent = message;
+    dom.authMessage.style.color = isError ? "#fca5a5" : "#e2e8f0";
+}
+
+function setCurrentUser(user) {
+    currentUser = user;
+    if (!dom.authUser || !dom.authSummary || !dom.btnLogout) return;
+    dom.authUser.textContent = user ? user.username : "nepřihlášen";
+    dom.btnLogout.disabled = !user;
+    dom.authSummary.textContent = user
+        ? `Přihlášeno jako ${user.username}. Ukládám do SQLite.`
+        : "Cloudové ukládání je dostupné po přihlášení.";
 }
 
 function updateUI() {
@@ -215,9 +240,15 @@ function scheduleSave() {
 async function saveState() {
     const stateClone = cloneStateSafe(state);
     try {
-        window.localStorage.setItem("rebirthGameState", JSON.stringify(stateClone));
+        window.localStorage.setItem(getLocalStorageKey(), JSON.stringify(stateClone));
     } catch (e) {
         console.warn("LocalStorage save failed:", e);
+    }
+
+    if (!currentUser) {
+        lastSaveSuccessful = true;
+        dom.saveStatus.textContent = "jen lokálně";
+        return;
     }
 
     try {
@@ -228,6 +259,14 @@ async function saveState() {
             },
             body: JSON.stringify(stateClone)
         });
+
+        if (response.status === 401) {
+            setCurrentUser(null);
+            setAuthMessage("Přihlášení vypršelo, přihlas se znovu.", true);
+            lastSaveSuccessful = false;
+            dom.saveStatus.textContent = "nepřihlášen";
+            return;
+        }
 
         if (!response.ok) {
             throw new Error("HTTP status " + response.status);
@@ -252,7 +291,7 @@ async function loadState() {
 
     let loadedFromLocal = false;
     try {
-        const cached = window.localStorage.getItem("rebirthGameState");
+        const cached = window.localStorage.getItem(getLocalStorageKey());
         if (cached) {
             const parsed = JSON.parse(cached);
             if (parsed && typeof parsed === "object") {
@@ -264,8 +303,25 @@ async function loadState() {
         console.warn("LocalStorage load failed:", e);
     }
 
+    if (!currentUser) {
+        dom.statusText.textContent = loadedFromLocal
+            ? "Nepřihlášený režim – používám lokální stav."
+            : "Přihlas se, aby se ukládalo na server.";
+        updateUI();
+        return;
+    }
+
     try {
         const response = await fetch("api.php?action=load", { method: "GET" });
+        if (response.status === 401) {
+            setCurrentUser(null);
+            setAuthMessage("Přihlášení vypršelo, přihlas se znovu.", true);
+            dom.statusText.textContent = loadedFromLocal
+                ? "Přihlášení vypršelo, načetl jsem lokální stav."
+                : "Přihlášení vypršelo.";
+            return;
+        }
+
         if (!response.ok) {
             throw new Error("HTTP status " + response.status);
         }
@@ -288,6 +344,90 @@ async function loadState() {
     }
 
     updateUI();
+}
+
+async function fetchCurrentUser() {
+    try {
+        const response = await fetch("api.php?action=me");
+        if (!response.ok) {
+            throw new Error("HTTP status " + response.status);
+        }
+        const json = await response.json();
+        if (json && json.ok) {
+            setCurrentUser(json.user);
+            return json.user;
+        }
+        return null;
+    } catch (e) {
+        console.error("User check failed", e);
+        setAuthMessage("Nepodařilo se ověřit přihlášení.", true);
+        return null;
+    }
+}
+
+async function handleAuthRequest(action, username, password) {
+    const response = await fetch(`api.php?action=${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+    });
+
+    const json = await response.json();
+    if (!response.ok || !json.ok) {
+        const message = json?.error || "Neznámá chyba.";
+        setAuthMessage(message, true);
+        return null;
+    }
+
+    setAuthMessage(action === "login" ? "Přihlášeno." : "Registrace hotova.");
+    setCurrentUser(json.user);
+    return json.user;
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    const username = dom.loginUsername.value.trim();
+    const password = dom.loginPassword.value;
+    if (!username || !password) {
+        setAuthMessage("Vyplň přihlašovací údaje.", true);
+        return;
+    }
+    const user = await handleAuthRequest("login", username, password);
+    if (user) {
+        state = createDefaultState();
+        await loadState();
+    }
+}
+
+async function handleRegister(event) {
+    event.preventDefault();
+    const username = dom.registerUsername.value.trim();
+    const password = dom.registerPassword.value;
+    if (!username || !password) {
+        setAuthMessage("Vyplň registrační údaje.", true);
+        return;
+    }
+    const user = await handleAuthRequest("register", username, password);
+    if (user) {
+        state = createDefaultState();
+        await loadState();
+    }
+}
+
+async function handleLogout(event) {
+    event.preventDefault();
+    if (!currentUser) {
+        return;
+    }
+    try {
+        await fetch("api.php?action=logout", { method: "POST" });
+    } catch (e) {
+        console.warn("Logout failed", e);
+    }
+    setCurrentUser(null);
+    setAuthMessage("Odhlášen.");
+    dom.statusText.textContent = "Nepřihlášený režim.";
+    dom.saveStatus.textContent = "nepřihlášen";
 }
 
 function initDom() {
@@ -316,6 +456,16 @@ function initDom() {
     dom.saveStatus = document.querySelector("#save-status span");
     dom.statAutoPower = document.getElementById("stat-autopower");
     dom.statGlobalBonus = document.getElementById("stat-globalbonus");
+    dom.authUser = document.getElementById("auth-user");
+    dom.authSummary = document.getElementById("auth-summary");
+    dom.authMessage = document.getElementById("auth-message");
+    dom.btnLogout = document.getElementById("btn-logout");
+    dom.loginForm = document.getElementById("form-login");
+    dom.registerForm = document.getElementById("form-register");
+    dom.loginUsername = document.getElementById("login-username");
+    dom.loginPassword = document.getElementById("login-password");
+    dom.registerUsername = document.getElementById("register-username");
+    dom.registerPassword = document.getElementById("register-password");
 }
 
 function initEvents() {
@@ -326,6 +476,9 @@ function initEvents() {
     dom.btnBuyAutoPower.addEventListener("click", buyAutoPowerUpgrade);
     dom.btnBuyGlobalBonus.addEventListener("click", buyGlobalMultiplierUpgrade);
     dom.btnRebirth.addEventListener("click", performRebirth);
+    dom.loginForm.addEventListener("submit", handleLogin);
+    dom.registerForm.addEventListener("submit", handleRegister);
+    dom.btnLogout.addEventListener("click", handleLogout);
 
     window.addEventListener("beforeunload", () => {
         if (!lastSaveSuccessful) {
@@ -338,8 +491,12 @@ window.addEventListener("DOMContentLoaded", () => {
     initDom();
     initEvents();
     updateUI();
-    void loadState();
-    window.setInterval(() => {
-        applyClickGain(state.autoClickers * state.autoClickerPower);
-    }, 1000);
+
+    (async () => {
+        await fetchCurrentUser();
+        await loadState();
+        window.setInterval(() => {
+            applyClickGain(state.autoClickers * state.autoClickerPower);
+        }, 1000);
+    })();
 });
