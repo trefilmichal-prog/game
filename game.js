@@ -132,6 +132,14 @@ function performRebirth() {
 let saveTimeoutId = null;
 let lastSaveSuccessful = true;
 
+function cloneStateSafe(source) {
+    if (typeof structuredClone === "function") {
+        return structuredClone(source);
+    }
+    // Fallback for browsers without structuredClone support
+    return JSON.parse(JSON.stringify(source));
+}
+
 function scheduleSave() {
     if (saveTimeoutId !== null) {
         window.clearTimeout(saveTimeoutId);
@@ -144,7 +152,7 @@ function scheduleSave() {
 }
 
 async function saveState() {
-    const stateClone = structuredClone(state);
+    const stateClone = cloneStateSafe(state);
     try {
         window.localStorage.setItem("rebirthGameState", JSON.stringify(stateClone));
     } catch (e) {
@@ -166,15 +174,15 @@ async function saveState() {
         const json = await response.json();
         if (json && json.ok) {
             lastSaveSuccessful = true;
-            dom.saveStatus.innerHTML = 'Auto-save: <span>OK</span>';
+            dom.saveStatus.textContent = "OK";
         } else {
             lastSaveSuccessful = false;
-            dom.saveStatus.textContent = "Auto-save: chyba serveru";
+            dom.saveStatus.textContent = "chyba serveru";
         }
     } catch (err) {
         console.error("Save error:", err);
         lastSaveSuccessful = false;
-        dom.saveStatus.textContent = "Auto-save: offline / chyba";
+        dom.saveStatus.textContent = "offline / chyba";
     }
 }
 
