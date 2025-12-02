@@ -1,5 +1,4 @@
 <?php
-declare(strict_types=1);
 
 session_start();
 
@@ -11,7 +10,7 @@ const DB_FILE = __DIR__ . '/data.sqlite';
 /**
  * @return PDO
  */
-function getDb(): PDO
+function getDb()
 {
     static $pdo = null;
     if ($pdo instanceof PDO) {
@@ -41,26 +40,31 @@ function getDb(): PDO
 
     return $pdo;
 }
-
 /**
  * @param array<string,mixed> $payload
  * @param int $status
  */
-function respond(array $payload, int $status = 200): void
+function respond(array $payload, $status = 200)
 {
     http_response_code($status);
-    echo json_encode($payload, JSON_THROW_ON_ERROR);
+    $json = json_encode($payload);
+    if ($json === false) {
+        error_log('[api.php] json_encode failed: ' . json_last_error_msg());
+        echo "{\"ok\":false,\"error\":\"Došlo k interní chybě serveru.\"}";
+    } else {
+        echo $json;
+    }
     exit;
 }
 
-function currentUserId(): ?int
+function currentUserId()
 {
-    $id = $_SESSION['user_id'] ?? null;
+    $id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
     return is_int($id) ? $id : null;
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$action = $_GET['action'] ?? '';
+$action = isset($_GET['action']) ? $_GET['action'] : '';
 
 try {
     if ($method === 'GET' && $action === 'me') {
@@ -83,8 +87,15 @@ try {
 
     if ($method === 'POST' && $action === 'register') {
         $input = json_decode((string)file_get_contents('php://input'), true);
-        $username = is_string($input['username'] ?? null) ? trim($input['username']) : '';
-        $password = is_string($input['password'] ?? null) ? $input['password'] : '';
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            respond(['ok' => false, 'error' => 'Neplatné JSON tělo.'], 400);
+        }
+
+        $inputIsArray = is_array($input);
+        $usernameValue = $inputIsArray && array_key_exists('username', $input) ? $input['username'] : null;
+        $passwordValue = $inputIsArray && array_key_exists('password', $input) ? $input['password'] : null;
+        $username = is_string($usernameValue) ? trim($usernameValue) : '';
+        $password = is_string($passwordValue) ? $passwordValue : '';
 
         if ($username === '' || mb_strlen($username) < 3 || mb_strlen($username) > 40) {
             respond(['ok' => false, 'error' => 'Uživatelské jméno musí mít 3–40 znaků.'], 400);
@@ -111,8 +122,15 @@ try {
 
     if ($method === 'POST' && $action === 'login') {
         $input = json_decode((string)file_get_contents('php://input'), true);
-        $username = is_string($input['username'] ?? null) ? trim($input['username']) : '';
-        $password = is_string($input['password'] ?? null) ? $input['password'] : '';
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            respond(['ok' => false, 'error' => 'Neplatné JSON tělo.'], 400);
+        }
+
+        $inputIsArray = is_array($input);
+        $usernameValue = $inputIsArray && array_key_exists('username', $input) ? $input['username'] : null;
+        $passwordValue = $inputIsArray && array_key_exists('password', $input) ? $input['password'] : null;
+        $username = is_string($usernameValue) ? trim($usernameValue) : '';
+        $password = is_string($passwordValue) ? $passwordValue : '';
 
         if ($username === '' || $password === '') {
             respond(['ok' => false, 'error' => 'Chybí přihlašovací údaje.'], 400);
@@ -150,7 +168,7 @@ try {
 
         /** @var array<string,mixed>|null $decoded */
         $decoded = json_decode($row['state_json'], true);
-        if ($decoded === null) {
+        if (json_last_error() !== JSON_ERROR_NONE || $decoded === null) {
             respond(['ok' => false, 'error' => 'Poškozený uložený stav.'], 500);
         }
 
@@ -168,10 +186,9 @@ try {
             respond(['ok' => false, 'error' => 'Chybí tělo požadavku.'], 400);
         }
 
-        try {
-            /** @var array<string,mixed>|null $decoded */
-            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        } catch (Throwable $e) {
+        /** @var array<string,mixed>|null $decoded */
+        $decoded = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
             respond(['ok' => false, 'error' => 'Neplatné JSON tělo.'], 400);
         }
 
@@ -205,15 +222,20 @@ try {
         }
 
         $pdo = getDb();
+        $encodedState = json_encode($decoded);
+        if ($encodedState === false) {
+            respond(['ok' => false, 'error' => 'Neplatný stav pro uložení.'], 400);
+        }
+
         $stmt = $pdo->prepare('INSERT INTO saves (user_id, state_json, updated_at) VALUES (:user, :state, CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at');
-        $stmt->execute([':user' => $userId, ':state' => json_encode($decoded, JSON_THROW_ON_ERROR)]);
+        $stmt->execute([':user' => $userId, ':state' => $encodedState]);
 
         respond(['ok' => true]);
     }
 
     respond(['ok' => false, 'error' => 'Nepodporovaná akce.'], 404);
-} catch (Throwable $e) {
+} catch (Exception $e) {
     error_log('[api.php] ' . $e->getMessage());
     respond(['ok' => false, 'error' => 'Došlo k interní chybě serveru.'], 500);
 }

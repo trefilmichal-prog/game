@@ -1,7 +1,6 @@
 <?php
-declare(strict_types=1);
 // Simple Rebirth clicker game
-// Backend: PHP 8.3
+// Backend: PHP 5.6+
 // Frontend: Vanilla JS
 
 // You can extend this file with your own authentication / user system.
@@ -386,7 +385,7 @@ declare(strict_types=1);
         <section class="card">
             <div class="card-header">
                 <h2>Výroba energie</h2>
-                <div class="badge">PHP 8.3 · Vanilla JS</div>
+                <div class="badge">PHP 5.6 · Vanilla JS</div>
             </div>
             <div class="stats-grid">
                 <div class="stat">
