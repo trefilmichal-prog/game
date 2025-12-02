@@ -64,6 +64,10 @@ declare(strict_types=1);
             border: 1px solid rgba(148,163,184,0.5);
             color: #9ca3af;
         }
+        .badge.success {
+            color: #22c55e;
+            border-color: rgba(34,197,94,0.5);
+        }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -75,6 +79,18 @@ declare(strict_types=1);
             border-radius: 12px;
             background: rgba(15,23,42,0.85);
             border: 1px solid rgba(30,64,175,0.7);
+            position: relative;
+        }
+        .stat .mini {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(59,130,246,0.16);
+            color: #bfdbfe;
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
         }
         .stat-label {
             font-size: 0.7rem;
@@ -176,6 +192,10 @@ declare(strict_types=1);
             font-size: 0.8rem;
             color: #e5e7eb;
         }
+        .shop-flavor {
+            font-size: 0.7rem;
+            color: #818cf8;
+        }
         .shop-button {
             padding: 8px 14px;
             border-radius: 999px;
@@ -269,6 +289,16 @@ declare(strict_types=1);
                 <div class="stat-label">Autoclickery</div>
                 <div class="stat-value" id="stat-autoclickers">0</div>
             </div>
+            <div class="stat">
+                <div class="stat-label">Síla autoclicku</div>
+                <div class="stat-value" id="stat-autopower">1.0x</div>
+                <div class="mini">Tuning</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Globální bonus</div>
+                <div class="stat-value" id="stat-globalbonus">1.0x</div>
+                <div class="mini">Motivátor</div>
+            </div>
         </div>
         <button id="btn-click" class="primary-button">
             Klikni pro energii
@@ -324,6 +354,32 @@ declare(strict_types=1);
                 </div>
                 <button class="shop-button" id="btn-buy-autoclicker">
                     Koupit
+                </button>
+            </div>
+            <div class="shop-item">
+                <div class="shop-main">
+                    <div class="shop-title">Tuning autoclickerů</div>
+                    <div class="shop-subtitle">+0,5 násobič pro automatické kliky</div>
+                    <div class="shop-meta">
+                        Cena: <span id="cost-autopower">200</span> coinů
+                    </div>
+                    <div class="shop-flavor">Inženýři v továrně dolaďují každé ozubené kolečko.</div>
+                </div>
+                <button class="shop-button" id="btn-buy-autopower">
+                    Vylepšit
+                </button>
+            </div>
+            <div class="shop-item">
+                <div class="shop-main">
+                    <div class="shop-title">Motivátor posádky</div>
+                    <div class="shop-subtitle">+0,5× globální výdělek</div>
+                    <div class="shop-meta">
+                        Cena: <span id="cost-globalbonus">500</span> coinů
+                    </div>
+                    <div class="shop-flavor">Hymna, káva a plakáty motivují posádku k vyšším výkonům.</div>
+                </div>
+                <button class="shop-button" id="btn-buy-globalbonus">
+                    Inspiruj!
                 </button>
             </div>
         </div>
