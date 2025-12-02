@@ -317,6 +317,56 @@ declare(strict_types=1);
         .status span {
             color: #22c55e;
         }
+        .auth-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .input-group label {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+        }
+        .text-input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(148,163,184,0.4);
+            background: rgba(15,23,42,0.9);
+            color: #e2e8f0;
+        }
+        .secondary-button {
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(99,102,241,0.45);
+            background: linear-gradient(130deg, rgba(79,70,229,0.15), rgba(59,130,246,0.22));
+            color: #e5e7eb;
+            cursor: pointer;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .secondary-button[disabled] {
+            opacity: 0.5;
+            cursor: default;
+        }
+        .text-button {
+            background: none;
+            border: none;
+            color: #93c5fd;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+        }
+        .auth-note {
+            font-size: 0.82rem;
+            color: #e2e8f0;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -486,6 +536,52 @@ declare(strict_types=1);
                 <div class="status" id="save-status">
                     Auto-save: <span>čekám…</span>
                 </div>
+            </div>
+        </section>
+        <section class="card auth-card">
+            <div class="card-header">
+                <h2>Profil</h2>
+                <div class="badge success">SQLite</div>
+            </div>
+            <p class="auth-note" id="auth-summary">Cloudové ukládání je dostupné po přihlášení.</p>
+            <div class="auth-grid">
+                <form id="form-login" class="card" style="padding: 14px;">
+                    <div class="card-header" style="margin-bottom: 10px;">
+                        <h2 style="font-size: 1rem; margin: 0;">Přihlášení</h2>
+                        <div class="badge">Hráč</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-username">Uživatelské jméno</label>
+                        <input id="login-username" name="username" class="text-input" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Heslo</label>
+                        <input id="login-password" name="password" type="password" class="text-input" required>
+                    </div>
+                    <button type="submit" class="secondary-button" style="margin-top: 10px;">Přihlásit</button>
+                </form>
+                <form id="form-register" class="card" style="padding: 14px;">
+                    <div class="card-header" style="margin-bottom: 10px;">
+                        <h2 style="font-size: 1rem; margin: 0;">Registrace</h2>
+                        <div class="badge">Nový hráč</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="register-username">Uživatelské jméno</label>
+                        <input id="register-username" name="username" class="text-input" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="register-password">Heslo</label>
+                        <input id="register-password" name="password" type="password" class="text-input" required>
+                    </div>
+                    <button type="submit" class="secondary-button" style="margin-top: 10px;">Registrovat</button>
+                </form>
+            </div>
+            <div class="auth-note" id="auth-message">
+                Nemáš účet? Vytvoř si ho a tvůj postup se uloží na serveru.
+            </div>
+            <div class="status" style="margin-top: 8px; text-align: left;">
+                Uživatel: <span id="auth-user">nepřihlášen</span>
+                <button id="btn-logout" class="text-button" style="margin-left: 6px;">Odhlásit</button>
             </div>
         </section>
     </div>
