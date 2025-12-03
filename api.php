@@ -155,15 +155,27 @@ try {
 
     if ($method === 'GET' && $action === 'load') {
         $userId = currentUserId();
+
+        // Umožni hostům hrát bez přihlášení: ukládej stav do PHP session.
         if ($userId === null) {
-            respond(['ok' => false, 'error' => 'Nepřihlášený uživatel.'], 401);
+            if (!isset($_SESSION['guest_state'])) {
+                respond(['ok' => true, 'hasState' => false, 'state' => null, 'mode' => 'guest']);
+            }
+
+            /** @var array<string,mixed>|null $guestDecoded */
+            $guestDecoded = json_decode((string)$_SESSION['guest_state'], true);
+            if (json_last_error() !== JSON_ERROR_NONE || $guestDecoded === null) {
+                respond(['ok' => false, 'error' => 'Poškozený uložený stav.'], 500);
+            }
+
+            respond(['ok' => true, 'hasState' => true, 'state' => $guestDecoded, 'mode' => 'guest']);
         }
 
         $stmt = getDb()->prepare('SELECT state_json FROM saves WHERE user_id = :user');
         $stmt->execute([':user' => $userId]);
         $row = $stmt->fetch();
         if ($row === false) {
-            respond(['ok' => true, 'hasState' => false, 'state' => null]);
+            respond(['ok' => true, 'hasState' => false, 'state' => null, 'mode' => 'user']);
         }
 
         /** @var array<string,mixed>|null $decoded */
@@ -172,14 +184,11 @@ try {
             respond(['ok' => false, 'error' => 'Poškozený uložený stav.'], 500);
         }
 
-        respond(['ok' => true, 'hasState' => true, 'state' => $decoded]);
+        respond(['ok' => true, 'hasState' => true, 'state' => $decoded, 'mode' => 'user']);
     }
 
     if ($method === 'POST' && $action === 'save') {
         $userId = currentUserId();
-        if ($userId === null) {
-            respond(['ok' => false, 'error' => 'Nepřihlášený uživatel.'], 401);
-        }
 
         $raw = file_get_contents('php://input');
         if ($raw === false || $raw === '') {
@@ -221,17 +230,23 @@ try {
             }
         }
 
-        $pdo = getDb();
         $encodedState = json_encode($decoded);
         if ($encodedState === false) {
             respond(['ok' => false, 'error' => 'Neplatný stav pro uložení.'], 400);
         }
 
+        // U hostů ukládej stav do session, přihlášení hráči do SQLite.
+        if ($userId === null) {
+            $_SESSION['guest_state'] = $encodedState;
+            respond(['ok' => true, 'mode' => 'guest']);
+        }
+
+        $pdo = getDb();
         $stmt = $pdo->prepare('INSERT INTO saves (user_id, state_json, updated_at) VALUES (:user, :state, CURRENT_TIMESTAMP)
             ON CONFLICT(user_id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at');
         $stmt->execute([':user' => $userId, ':state' => $encodedState]);
 
-        respond(['ok' => true]);
+        respond(['ok' => true, 'mode' => 'user']);
     }
 
     respond(['ok' => false, 'error' => 'Nepodporovaná akce.'], 404);
