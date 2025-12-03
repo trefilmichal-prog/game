@@ -248,6 +248,7 @@ async function saveState() {
     try {
         const response = await fetch("api.php?action=save", {
             method: "POST",
+            credentials: "same-origin",
             headers: {
                 "Content-Type": "application/json"
             },
@@ -298,7 +299,10 @@ async function loadState() {
     }
 
     try {
-        const response = await fetch("api.php?action=load", { method: "GET" });
+        const response = await fetch("api.php?action=load", {
+            method: "GET",
+            credentials: "same-origin"
+        });
         if (response.status === 401) {
             setCurrentUser(null);
             setAuthMessage("Přihlášení vypršelo, přihlas se znovu.", true);
@@ -336,7 +340,7 @@ async function loadState() {
 
 async function fetchCurrentUser() {
     try {
-        const response = await fetch("api.php?action=me");
+        const response = await fetch("api.php?action=me", { credentials: "same-origin" });
         if (!response.ok) {
             throw new Error("HTTP status " + response.status);
         }
@@ -356,6 +360,7 @@ async function fetchCurrentUser() {
 async function handleAuthRequest(action, username, password) {
     const response = await fetch(`api.php?action=${action}`, {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
     });
@@ -408,7 +413,7 @@ async function handleLogout(event) {
         return;
     }
     try {
-        await fetch("api.php?action=logout", { method: "POST" });
+        await fetch("api.php?action=logout", { method: "POST", credentials: "same-origin" });
     } catch (e) {
         console.warn("Logout failed", e);
     }
