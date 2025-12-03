@@ -245,12 +245,6 @@ async function saveState() {
         console.warn("LocalStorage save failed:", e);
     }
 
-    if (!currentUser) {
-        lastSaveSuccessful = true;
-        dom.saveStatus.textContent = "jen lokálně";
-        return;
-    }
-
     try {
         const response = await fetch("api.php?action=save", {
             method: "POST",
@@ -274,7 +268,7 @@ async function saveState() {
         const json = await response.json();
         if (json && json.ok) {
             lastSaveSuccessful = true;
-            dom.saveStatus.textContent = "OK";
+            dom.saveStatus.textContent = json.mode === "guest" ? "host / session" : "OK";
         } else {
             lastSaveSuccessful = false;
             dom.saveStatus.textContent = "chyba serveru";
@@ -303,14 +297,6 @@ async function loadState() {
         console.warn("LocalStorage load failed:", e);
     }
 
-    if (!currentUser) {
-        dom.statusText.textContent = loadedFromLocal
-            ? "Nepřihlášený režim – používám lokální stav."
-            : "Přihlas se, aby se ukládalo na server.";
-        updateUI();
-        return;
-    }
-
     try {
         const response = await fetch("api.php?action=load", { method: "GET" });
         if (response.status === 401) {
@@ -328,7 +314,9 @@ async function loadState() {
         const json = await response.json();
         if (json && json.ok && json.hasState && json.state) {
             Object.assign(state, json.state);
-            dom.statusText.textContent = "Stav načten ze serveru.";
+            dom.statusText.textContent = json.mode === "guest"
+                ? "Stav načten ze session (bez přihlášení)."
+                : "Stav načten ze serveru.";
         } else if (loadedFromLocal) {
             dom.statusText.textContent = "Stav načten z lokálního úložiště.";
         } else {
